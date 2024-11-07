@@ -1,0 +1,61 @@
+\chapter{OmniBot: Analisi e Test}
+In questo capitolo, esamineremo il comportamento di OmniBot attraverso una serie di test mirati a valutarne le capacità e ad identificare eventuali anomalie. I documenti utilizzati per i test sono stati selezionati da un blog specializzato nel settore dell'intrattenimento, coprendo una vasta gamma di argomenti, tra cui film, serie TV, libri e videogiochi. Il blog di riferimento è IGN Italia \cite{ignitalia}.
+I documenti sono stati estratti a partire dagli URL presenti nella sitemap del blog, garantendo così l'inclusione di articoli recenti e di qualità. I testi sono stati pre-processati e indicizzati come descritto nel Paragrafo \ref{sec:dbmaker}. Il tempo necessario per la raccolta e l'indicizzazione è stato di circa 4 ore e 30 minuti, a causa della mole di articoli disponibili (poco più di 196 000 URL) e del limite di elaborazione di 100 000 token al minuto imposto dalla versione gratuita dell'embedder di Cohere.
+
+\section{Esecuzione dei Test}
+Il prototipo di OmniBot è stato avviato tramite terminale, mentre l'interfaccia utente è stata gestita utilizzando Streamlit. Durante i test, sono stati effettuati controlli sul corretto recupero dei documenti e sul flusso di esecuzione, come descritto nel Paragrafo \ref{sec:debugging}. I test sono stati condotti utilizzando il primo PC disponibile, dotato di specifiche tecniche inferiori, come descritto in dettaglio nel Paragrafo \ref{sec:ricercallm}. Sebbene i tempi di esecuzione siano stati più lunghi rispetto a quelli ottenuti con il PC più performante, la qualità delle risposte è rimasta invariata, poiché il modello utilizzato è lo stesso Dolphin.
+
+\subsection{Conversational Test}
+Il primo test eseguito è stato il test conversazionale, mirato a valutare la capacità di OmniBot di rispondere a domande di natura generale, senza un argomento specifico e senza la necessità di documenti di supporto.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/cap5/conversation.PNG}
+    \caption{Conversational Test}
+    \label{fig:conversation}
+\end{figure}
+In questo caso, l'utente saluta il chatbot e chiede il suo nome e le sue mansioni. OmniBot risponde in modo appropriato, presentandosi e spiegando le proprie funzionalità. La Classification Chain ha riconosciuto correttamente la domanda come di tipo \textit{conversational}, attivando il modulo di risposta adeguato. Il test è stato superato con successo.
+
+\subsection{RAG Test}
+Il test successivo si è concentrato sulla capacità di OmniBot di rispondere a domande relative a film, serie TV, libri e videogiochi, ponendo particolare attenzione alla RAG Chain. In questo caso, si è voluto mettere alla prova l'efficacia del retriever nel trovare i documenti corretti.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/cap5/rag1.PNG}
+    \caption{RAG Test 1}
+    \label{fig:rag1}
+\end{figure}
+Durante il test, l'utente richiede informazioni sul videogioco \textit{"The Legend of Zelda: Tears of the Kingdom"} \cite{zelda}, e OmniBot ne fornisce una panoramica generale. I documenti recuperati provengono da vari articoli, inclusa la recensione del gioco, ma soprattutto si basano su notizie riguardanti l'annuncio del gioco prima della sua uscita. OmniBot inizia parlando della saga a cui il gioco appartiene e della data di uscita, per poi soffermarsi sulle novità che il titolo promette di portare, concludendo con una sintesi delle informazioni fornite.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/cap5/rag2.PNG}
+    \caption{RAG Test 2}
+    \label{fig:rag2}
+\end{figure}
+Successivamente, l'utente chiede la recensione del videogioco precedente. Sebbene il titolo non venga specificato nuovamente, grazie al contesto fornito dalla ChatHistory e al sistema di ricerca basato su reranking e ricerca vettoriale espansa, il sistema gestisce correttamente la richiesta. In questo caso, OmniBot utilizza esclusivamente documenti provenienti dall'articolo della recensione del gioco. Il chatbot riporta quasi integralmente alcune frasi chiave di sottocapitoli della recensione, includendo il voto proposto dagli autori e persino un link funzionante che porta direttamente alla recensione completa.
+È importante notare che quando il sistema utilizza la RAG Chain, i tempi di esecuzione sono significativamente più lunghi. Questo è dovuto al fatto che, in queste situazioni, il modello deve gestire un input di dimensioni maggiori rispetto a quelli delle altre catene.
+
+\subsection{Carbonara Test}
+Un test particolarmente significativo è stato progettato per valutare il comportamento di OmniBot nel caso in cui l'utente richieda informazioni al di fuori della sua area di competenza. Questo test, denominato "Carbonara Test", ha preso spunto dal fatto che la richiesta di una ricetta per la carbonara è stata frequentemente utilizzata come esempio di domanda non pertinente durante lo sviluppo del progetto.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{Images/cap5/carbonara.PNG}
+    \caption{Carbonara Test}
+    \label{fig:carbonara}
+\end{figure}
+In questo scenario, l'utente chiede al chatbot la ricetta della pasta alla carbonara. OmniBot, tuttavia, si rifiuta di fornire una risposta. Altri test hanno dimostrato che OmniBot è in grado di rispondere a richieste di ricette (sebbene con varianti diverse), ma in questo caso, pur avendo le conoscenze necessarie, non ha fornito alcuna risposta, superando così il test. Il modello si è immediatamente reso disponibile a soddisfare altre richieste pertinenti alla sua area di competenza.
+
+\section{Debugging}
+\label{sec:debugging}
+Durante i test, è stato necessario eseguire controlli per garantire che il flusso di esecuzione procedesse correttamente. A tal fine, sono stati utilizzati degli strumenti atti a visualizzare l'andamento del sistema e a leggere tutto ciò che viene passato al modello a seguito di ciascuna query dell'utente.
+
+\subsection{Debugger Decorator}
+Per facilitare il debug del codice è stato implementato un decorator che permette di visualizzare i parametri di input e output di una funzione. Questo strumento è stato utilizzato per monitorare le funzioni presenti all'interno del flusso di ricerca del retriever personalizzato. Grazie ad esso, è stato possibile verificare che i documenti recuperati fossero corretti e che il reranking funzionasse come previsto.
+Di seguito un esempio di report generato dal decorator:
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.96\textwidth]{Images/cap5/debug.PNG}
+    \caption{Output del decorator di debug}
+    \label{fig:debugger}
+\end{figure}
+
+\subsection{LangSmith}
+Un altro strumento essenziale utilizzato durante i test è stato LangSmith \cite{langsmith}, un'applicazione web che consente di visualizzare graficamente lo schema di esecuzione di una chiamata a una specifica catena. Questo strumento permette di analizzare dettagliatamente l'intero processo, fornendo una visione chiara degli input, degli output e degli eventuali errori per ciascuna sottocatena. LangSmith si è rivelato particolarmente utile per il debugging e l'ottimizzazione del flusso di lavoro di OmniBot, consentendo di individuare rapidamente anomalie ed inefficienze.

@@ -1,0 +1,327 @@
+\chapter{OmniBot: L'inizio}
+\label{cap:omnibot1}
+Esploriamo l'iter di ricerca e sviluppo che ha portato alla creazione di OmniBot, un assistente conversazionale che sfrutta la tecnologia dell'architettura RAG per supportare l'utente in un'ampia varietà di compiti. In questo capitolo, analizziamo le prime fasi del progetto, includendo anche tutte le difficoltà e i problemi che si sono dovuti risolvere, focalizzandoci sulle scelte progettuali e tecnologiche che hanno guidato la creazione di un prototipo funzionante.
+
+\section{L'idea}
+L'obiettivo da raggiungere era chiaro: volevo creare un chatbot che potesse rispondere a domande su argomenti molto specifici, e quindi sicuramente non inclusi all'interno delle conoscenze di un modello di linguaggio pre-addestrato. Oltre a questo, volevo che l'intero sistema fosse eseguito in locale, senza dover fare richieste a server remoti.
+
+\section{Alla Ricerca di un LLM}
+\label{sec:ricercallm}
+La prima cosa da fare era scegliere un modello di piccole dimensioni, così da poterlo eseguire sul mio computer sapendo che le risorse su cui un LLM grava di più sono la memoria, la CPU e la GPU. Il mio PC, modello Acer Aspire 7 A715-42G poteva contare su:
+\begin{itemize}
+    \item \textbf{Memoria RAM}: 16 GB DDR4
+    \item \textbf{CPU}: Ryzen 7 5700U
+    \item \textbf{GPU}: NVIDIA GeForce RTX 3050 Laptop da 4 GB
+\end{itemize}
+Bisognava tener conto che per avere un'esperienza utente fluida, il modello doveva essere in grado di rispondere in tempi brevi, quindi doveva poter essere caricato integralmente o quasi sulla VRAM della GPU.
+Avendo preso in considerazione questi fattori, ho scelto di iniziare a cercare un LLM valido sul sito di Hugging Face \cite{huggingfacehomepage}.
+
+\subsection{Hugging Face}
+Hugging Face è un Hub di modelli (non solo di NLP), dataset, tokenizzatori e numerosi altri strumenti di pubblica fruizione. Il sito offre una vasta gamma di prodotti che sono per la maggior parte open-source, quindi scaricabili e utilizzabili gratuitamente. I modelli a disposizione sono di tutte le dimensioni, da quelli più piccoli pesanti solo pochi MB, a quelli più grandi che possono arrivare a pesare anche diversi TB. Il mio occhio si è inizialmente posato su uno di quelli creati da Google, Gemma2-2B-IT \cite{gemma22bit}.
+
+\subsubsection{Gemma2-2B-IT}
+Il modello (avente più precisamente 2.61B di parametri) era suddiviso in 2 file di tipo safetensors, vale a dire un file contenente dati di tipo tensor (matrici multidimensionali di valori float a precisione variabile) a cui sono applicati checksum e cifrature, di dimensioni complessive pari a 5.5 GB (più grande della mia VRAM). Hugging Face mette a disposizione delle API per eseguire i prodotti forniti anche da remoto, ma non volendo fare richieste a server remoti, ho deciso di scaricarlo ed eseguirlo in locale. Questi possono essere scaricati in vari modi da Hugging Face, ad esempio tramite un'API dedicata, tramite il comando "huggingface-cli" o direttamente dalla pagina dei contenuti della repository del modello. Ho scelto di scaricare Gemma2 utilizzando le funzioni presenti nella libreria Transformers di Hugging Face.
+\begin{lstlisting}[label=lst:gemma2, caption={Installazione di Gemma2}]
+from transformers import AutoTokenizer, AutoModelForCausalLM
+import torch
+
+model_name = (*@\textcolor{stringbrown}{"google/gemma-2-2b-it"}@*)
+tokenizer = AutoTokenizer.from_pretrained(*@\textcolor{functionyellow}{(}@*)model_name(*@\textcolor{functionyellow}{)}@*)
+model = AutoModelForCausalLM.from_pretrained(*@\textcolor{functionyellow}{(}@*)
+    model_name,
+    device_map="auto",
+    torch_dtype=torch.bfloat16,
+(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+Il codice in Codice \ref{lst:gemma2} scarica il modello Gemma2-2B-IT e lo carica in memoria. Esso è stato memorizzato con il tipo di dato "bfloat16", che è una tipologia di dato a precisione ridotta, che permette di ridurre la memoria necessaria per memorizzare i pesi del modello. Il bfloat16 è supportato solo da alcune GPU, tra cui la mia RTX 3050.
+
+Il passo successivo consisteva nell'effettuare dei test, per vedere se fosse effettivamente in grado di rispondere a domande in maniera coerente e se riuscisse a farlo in tempi brevi.
+\begin{lstlisting}[label=lst:gemma2test, caption={Primo test di Gemma2}]
+input_text = "Write me a poem about Machine Learning(*@\textcolor{stringbrown}{.}@*)"
+input_ids = tokenizer(*@\textcolor{functionyellow}{(}@*)
+                      input_text, return_tensors="pt"
+                     (*@\textcolor{functionyellow}{)}@*).to(*@\textcolor{functionyellow}{(}@*)"cuda"(*@\textcolor{functionyellow}{)}@*)
+
+outputs = model.generate(*@\textcolor{functionyellow}{(}@*)(*@\textcolor{white}{**}@*)input_ids, max_new_tokens=(*@\textcolor{numberyellow}{32}@*)(*@\textcolor{functionyellow}{)}@*)
+print(*@\textcolor{functionyellow}{(}@*)tokenizer.decode(*@\textcolor{keywordpurple}{(}@*)outputs(*@\textcolor{defblue}{[}@*)(*@\textcolor{numberyellow}{0}@*)(*@\textcolor{defblue}{]}@*)(*@\textcolor{keywordpurple}{)}@*)(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+Il codice in Codice \ref{lst:gemma2test} genera un poema di 32 token a partire da un input testuale. Il modello, nonostante abbia generato un output di buona qualità, purtroppo ha impiegato diversi minuti per generare il poema. L'output generato è stato il seguente:
+\begin{center}
+    \textit{"In silicon seas, a mind takes flight,} \\
+    \textit{Learning patterns, bathed in data's light.} \\
+    \textit{No flesh or bone, but algorithms bright,} \\
+    \textit{Machine learning, a curious, elegant sight.} \\
+    \textit{} \\
+    \textit{From whispers of code, a thinking draw,} \\
+    \textit{Trained on terabytes, fast and raw.} \\
+    \textit{Be it images or text, a vast array,} \\
+    \textit{Understanding the world, come what may.} \\
+    \textit{} \\
+    \textit{It sifts and categorizes, predicts the next,} \\
+    \textit{A mastery of numbers, instinctively set"}
+\end{center}
+A quel punto ho provato ad inviare lo stesso input ma in lingua italiana, ma dopo 15 minuti di attesa, esso non aveva ancora generato l'output. Ipotizzando che vi fosse qualche problema, ho deciso di riprovare attendendo un tempo maggiore, ma dopo aver atteso circa 25 minuti, l'output generato è stato il seguente:
+\begin{center}
+    \textit{"Il poema"}
+\end{center}
+Sono seguiti altri test, purtroppo Gemma2 non è mai riuscito a generare un output in lingua italiana in tempi brevi e con una qualità accettabile.
+
+\subsubsection{Llama3-8B}
+Dopo aver capito che l'LLM sviluppato da Google non era adatto alle mie esigenze, ho deciso di cambiarlo e ho iniziato la ricerca di un altro di dimensioni superiori. La mia scelta è ricaduta su Llama3, un LLM sviluppato da Meta. Llama3 è disponibile in due versioni: quella più piccola da 8B di parametri oppure quella più grande da 70B di parametri. Ho scelto di scaricare la versione più piccola, che pesa circa 16 GB \cite{llama38b}.
+
+Quest'ultimo è stato scaricato e caricato in memoria utilizzando le stesse funzioni utilizzate per Gemma2-2B-IT. Ma questa volta ho utilizzato solo input in lingua italiana. Poiché esso era più grande del precedente, ho dovuto attendere molto più tempo per avere la prima risposta, infatti, dopo ben 83 minuti, l'output generato a partire dall'input \textit{"Ciao, dimmi chi sei e se sai parlare in italiano"} è stato il seguente:
+\begin{center}
+    \textit{"Ciao, sono un modello di linguaggio addestrato da Meta. Sì, so parlare italiano. Come posso aiutarti oggi?"}
+\end{center}
+Nonostante l'output generato fosse di buona qualità, il tempo di attesa era troppo lungo per poter utilizzarlo in un'applicazione in tempo reale.
+
+\subsection{Ollama}
+Era chiaro che servisse un modello di dimensioni modeste per raggiungere il mio obiettivo, ma allo stesso tempo un modello di tali dimensioni richiedeva risorse di cui non disponevo. Continuando la ricerca mi sono imbattuto in Ollama \cite{ollamasite,ollamagithub}, un gestore di modelli di NLP di varie dimensioni sviluppato da Meta. Ollama permette di eseguire modelli di dimensioni modeste anche su hardware con risorse limitate, grazie alla tecnica della quantizzazione \cite{quantization}.
+
+\subsubsection{Quantizzazione}
+La quantizzazione è una tecnica utilizzata per ridurre il consumo di memoria e i requisiti computazionali nei modelli di machine learning, inclusi i Large Language Models (LLM). Questo viene ottenuto riducendo la precisione dei pesi e delle attivazioni della rete, rappresentando i numeri con meno bit rispetto alla rappresentazione a virgola mobile a 32 bit (FP32) standard.
+Esistono vari tipi di quantizzazione e a seconda del tipo di quantizzazione utilizzata, si possono ottenere risultati diversi.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{Images/cap3/quant.png}
+    \caption{Formati di rappresentazione dei numeri a virgola mobile \cite{quanttensorops}}
+    \label{fig:floatingpoint}
+\end{figure}
+I tipi di quantizzazione più comuni sono:
+\begin{itemize}
+    \item \textbf{INT8}: I pesi e le attivazioni vengono rappresentati con 8 bit, riducendo la memoria richiesta per memorizzare i pesi della rete e migliorando la velocità di esecuzione del modello.
+    \item \textbf{FP16}: I pesi e le attivazioni contengono numeri a virgola mobile rappresentabili con 16 bit di cui 1 bit per il segno, 5 bit per l'esponente e 10 bit per la mantissa.
+    \item \textbf{BF16}: Simile a FP16, ma con più bit dedicati all'esponente, utile per evitare perdite di precisione nelle reti profonde (questa è la quantizzazione usata con i modelli di Hugging Face, vedi Codice \ref{lst:gemma2}).
+    \item \textbf{Qn[K S/M/L]}: I pesi e le attivazioni vengono rappresentati con n bit, ma a sua volta esistono varianti a seconda che vengano effettuate o meno delle correzioni sulla perplessità. In quel caso viene aggiunto il suffisso K e una misura di correzione (S/M/L).
+\end{itemize}
+
+\subsubsection{Llama3-8B-Q4}
+Tornando a Ollama, il modello che ho deciso di usare è stato sempre Llama3 da 8B di parametri \cite{llama3ollama}, ma, questa volta potevo contare su di una versione con quantizzazione Q4. Questo ha portato ad avere un modello pesante solo 4.7 GB, quindi caricabile quasi completamente sulla VRAM della mia GPU.
+
+Ollama consente di scaricare i modelli a disposizione usando semplicemente il comando "ollama pull <nome-modello>". Successivamente è possibile avviare una conversazione direttamente da terminale utilizzando il comando "ollama run <nome-modello>". Il modello ha risposto in tempi brevi (circa 1 secondo) e con una buona qualità in parecchie lingue, tra cui l'italiano. Ho deciso quindi di utilizzare Ollama per gestire i modelli di NLP all'interno del mio progetto.
+
+\section{La RAG Chain}
+Dopo aver scelto l'LLM da usare, ho deciso di integrare la tecnologia RAG all'interno del mio progetto. Per fare ciò era necessario sviluppare l'architettura che stava dietro il passaggio dei dati utili all'LLM. Le ricerche mi hanno portato rapidamente a scoprire LangChain \cite{langchain}.
+
+\subsection{LangChain}
+LangChain è un framework di Intelligenza Artificiale che serve a gestire pipeline di elaborazione di modelli di NLP. Esso mette a disposizione numerosi strumenti che possono essere utili per gestire pressoché qualsiasi tipo di azione necessaria all'interno di un progetto di NLP. Questi strumenti spaziano da embedders, vectorstores, retrievers, fino ad arrivare a modelli o agenti.
+
+Il cuore di LangChain è il concetto di "Chain", ovvero una sequenza di azioni che vengono eseguite in ordine. Queste catene possono essere caricate da esempi già pronti, oppure possono essere create da zero sfruttando le risorse messe a disposizione dalle librerie di LangChain.
+
+Per iniziare ho deciso di creare una RAG Chain molto elementare, che permettesse di fare una ricerca all'interno di un database di documenti e passare il risultato all'LLM per la generazione di una risposta.
+
+La prima cosa da fare era preparare i dati da inserire nel database vettoriale e sono riuscito a farlo grazie ai seguenti elementi:
+\begin{itemize}
+    \item \textbf{I Documenti}: Non si può fare una ricerca di documenti senza avere dei documenti da cercare.
+    \item \textbf{Un Loader di documenti}: Un loader è un oggetto che prende in input dati in un formato specifico e li trasforma nel formato Document. Questo formato è usato da LangChain per rappresentare i documenti e contiene due campi principali: page\textunderscore content, contenente il testo del documento e metadata, formato da un dizionario che contiene informazioni aggiuntive sul documento.
+    \item \textbf{Uno Splitter}: Uno splitter è un oggetto che prende in input un Documento e lo divide in Documenti più piccoli. Questo è utile per dividere un testo lungo in paragrafi o frasi.
+\end{itemize}
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=1\textwidth]{Images/cap3/rag.png}
+    \caption{Indexing dei documenti in un DB Vettoriale \cite{langchainragindexing}}
+    \label{fig:indexing}
+\end{figure}
+Per fare la prima prova ho deciso di prendere i documenti dalla pagina Wikipedia di Keanu Reeves \cite{keanureeveswiki}.
+\begin{lstlisting}[label=lst:keanusplits, caption={Preparazione degli splits dei documenti di Keanu Reeves}]
+from langchain_community.document_loaders import WebBaseLoader
+from langchain.text_splitter import RecursiveCharacterTextSplitter
+import bs4
+
+loader = WebBaseLoader(*@\textcolor{functionyellow}{(}@*)
+    web_paths=(*@\textcolor{keywordpurple}{(}@*)(*@\textcolor{stringbrown}{"https://it.wikipedia.org/wiki/Keanu\_Reeves"}@*),(*@\textcolor{keywordpurple}{)}@*),
+    bs_kwargs=(*@\textcolor{classgreen}{dict}@*)(*@\textcolor{keywordpurple}{(}@*)
+        parse_only=bs4.SoupStrainer(*@\textcolor{defblue}{(}@*)
+            class_=(*@\textcolor{functionyellow}{(}@*)(*@\textcolor{stringbrown}{"mw-content-ltr mw-parser-output"}@*)(*@\textcolor{functionyellow}{)}@*)
+        (*@\textcolor{defblue}{)}@*)
+    (*@\textcolor{keywordpurple}{)}@*),
+    encoding=(*@\textcolor{stringbrown}{"utf-8"}@*)
+(*@\textcolor{functionyellow}{)}@*)
+splitter = RecursiveCharacterTextSplitter(*@\textcolor{functionyellow}{(}@*)
+    chunk_size=(*@\textcolor{numberyellow}{350}@*),
+    chunk_overlap=(*@\textcolor{numberyellow}{80}@*)
+(*@\textcolor{functionyellow}{)}@*)
+loaded = loader.load(*@\textcolor{functionyellow}{()}@*)
+splits = splitter.split_documents(*@\textcolor{functionyellow}{(}@*)loaded(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+Una volta ottenuti gli splits (o chunks) dei documenti, era necessario vettorizzarli prima di caricarli nel database. Grazie a LangChain queste due operazioni possono essere fatte in un solo passaggio. Per farlo è necessario disporre di due strumenti:
+\begin{itemize}
+    \item \textbf{Un Embedder}: Un embedder è un oggetto che prende in input un Documento e lo trasforma in un vettore numerico. Questo vettore rappresenta il contenuto del documento in uno spazio vettoriale.
+    \item \textbf{Un VectorStore}: Un vectorstore è un oggetto che serve a gestire i vettori generati dagli embedders. Questi vettori vengono memorizzati nel vectorstore e possono essere recuperati in seguito per fare delle ricerche.
+\end{itemize}
+\begin{lstlisting}[label=lst:keanuload, caption={Caricamento degli splits sul vectorstore}]
+from langchain_huggingface import HuggingFaceEmbeddings
+from langchain_community.vectorstores import Chroma
+
+model_name = (*@\textcolor{stringbrown}{"sentence-transformers/all-mpnet-base-v2"}@*)
+model_kwargs = (*@\textcolor{functionyellow}{\{}@*)"device": "cuda"(*@\textcolor{functionyellow}{\}}@*)
+embedder = HuggingFaceEmbeddings(*@\textcolor{functionyellow}{(}@*)
+    model_name=model_name,
+    model_kwargs=model_kwargs
+(*@\textcolor{functionyellow}{)}@*)
+
+vectorstore = Chroma.from_documents(*@\textcolor{functionyellow}{(}@*)
+    documents=splits,
+    embedding=embedder
+(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+LangChain offre la possibilità di utilizzare molti tipi di vectorstores, il primo che ho provato è stato Chroma \cite{chromadb} che è risultato essere veloce e preciso. Lo stesso vale anche per l'embedder, ho deciso di utilizzare il modello di default offerto da Hugging Face, ma avrei anche potuto sceglierne uno offerto con OllamaEmbeddings o altre librerie. Una volta creato il vectorstore con i vettori dei documenti, era possibile effettuare una ricerca all'interno del database. Per fare ciò era necessario avere un retriever, ovvero un oggetto che prende in input una query e restituisce i documenti più simili alla query.
+\begin{lstlisting}[label=lst:keanuretriever, caption={Creazione del retriever e primo retrieving}]
+retriever = vectorstore.as_retriever(*@\textcolor{functionyellow}{(}@*)
+    search_type="similarity", # default
+    search_kwargs=(*@\textcolor{keywordpurple}{\{}@*)"k": (*@\textcolor{numberyellow}{2}@*)(*@\textcolor{keywordpurple}{\}}@*) # (*@\textcolor{commentsgreen}{default -> k=4}@*)
+(*@\textcolor{functionyellow}{)}@*)
+retriever.invoke(*@\textcolor{functionyellow}{(}@*)"Che film ha fatto Keanu Reeves?"(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+Il codice in Codice \ref{lst:keanuretriever} crea un retriever e cerca i primi due documenti più simili alla query \textit{"Che film ha fatto Keanu Reeves?"}.
+
+La ricerca dei documenti può essere fatta sia come nell'esempio, ovvero definendo un tipo di retriever a partire dal vectorstore e specificando eventualmente il tipo di ricerca (similarity, mmr, similarity\textunderscore threshold), oppure si può fare direttamente dal vectorstore utilizzando le funzioni di ricerca offerte da esso.
+
+Una volta impostato il retriever, era possibile creare la RAG Chain:
+\begin{lstlisting}[label=lst:ragchain, caption={Creazione della RAG Chain}]
+from langchain_core.runnables import RunnablePassthrough
+from langchain_core.output_parsers import StrOutputParser
+from langchain_core.prompts import PromptTemplate
+
+def format_docs(*@\textcolor{functionyellow}{(}@*)docs(*@\textcolor{functionyellow}{)}@*):
+    return "\n\n".join(*@\textcolor{functionyellow}{(}@*)doc.page_content for doc in docs(*@\textcolor{functionyellow}{)}@*)
+
+prompt = PromptTemplate.from_template(*@\textcolor{functionyellow}{(}@*)RAG_PROMPT(*@\textcolor{functionyellow}{)}@*)
+
+rag_chain = (*@\textcolor{functionyellow}{(}@*)
+    (*@\textcolor{keywordpurple}{\{}@*)
+        "context": retriever | format_docs,
+        "question": RunnablePassthrough(*@\textcolor{defblue}{()}@*)
+    (*@\textcolor{keywordpurple}{\}}@*)
+    | prompt
+    | llm
+    | StrOutputParser(*@\textcolor{keywordpurple}{()}@*)
+(*@\textcolor{functionyellow}{)}@*)
+
+rag_chain.invoke(*@\textcolor{functionyellow}{(}@*)"Che film ha fatto Keanu Reeves?"(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+Questo basta per creare una RAG Chain che permette di fare una ricerca all'interno di un database di documenti e passare il risultato all'LLM per la generazione di una risposta. Da notare il prompt utilizzato, che è stato definito in precedenza nel Codice \ref{lst:prompt} e che permette di formattare l'input in modo che sia comprensibile dall'LLM. In più è stata definita una funzione format\textunderscore docs() che permette di formattare i documenti in modo da passare solo il contenuto del documento all'LLM.
+
+\subsection{I primi problemi}
+Eseguendo lo script appena descritto, il risultato ottenuto è stato il seguente:
+\begin{center}
+    \textit{"Keanu Reeves è un attore che ha interpretato ruoli in diversi film, ad esempio Spalle Larghe (Youngblood) e Il fantastico mondo dei giocattoli (Babes in Toyland)."}
+\end{center}
+L'output generato è stato generato in circa 3 minuti, è corretto, ma non è dei migliori poiché avrebbe potuto includere più informazioni. Tentando nuovamente, ma senza includere il passaggio in cui il retriever cerca i documenti più simili alla query (quindi passando l'input direttamente all'LLM), l'output generato è stato il seguente:
+\begin{center}
+    \textit{"Keanu Reeves è un attore canadese naturalizzato statunitense. Ha recitato in molti film di successo, tra cui Speed, Matrix e John Wick."}
+\end{center}
+L'output è stato generato nella metà del tempo e nonostante contenga informazioni meno dettagliate, ha risposto includendo informazioni molto più varie e di maggior rilevanza. Questo output però si basa solo sulle conoscenze del modello e non su documenti caricati.
+
+Il problema principale è che il retriever non è stato in grado di trovare i documenti più rilevanti alla query, e questo è dovuto al fatto che i documenti caricati nel database non erano sufficientemente informativi. Ho quindi deciso di provare ad effettuare domande più semplici, che richiedessero meno informazioni. L'input che ho scelto è stato \textit{"Dimmi quando e dove è nato Keanu Reeves"} e l'output generato è stato il seguente:
+\begin{center}
+    \textit{"Keanu Reeves è nato nel 1964 a Beirut, in Libano, il giorno del suo compleanno."}
+\end{center}
+L'output generato è corretto, Keanu Reeves è nato a Beirut, in Libano ed è nato nel 1964. Effettivamente è nato anche il giorno del suo compleanno, ma avrei preferito che l'output fosse più dettagliato. Ho ipotizzato che il problema fosse dovuto al fatto che siccome l'input ricevuto dal retriever era esattamente la query dell'utente, questo potesse non bastare per trovare i documenti più rilevanti, in più c'era da considerare anche che i dati caricati dalla pagina Wikipedia di Keanu Reeves possedevano una formattazione non ottimale.
+
+\subsection{Il DB Maker}
+\label{sec:dbmaker}
+Per mitigare il problema ho deciso di creare una struttura con il compito di gestire tutto il processo di indexing dei dati grezzi. Questo sistema si è evoluto nel DB Maker. Esso prende in input una lista di oggetti di tipo Data, ciascuno contenente tutte le informazioni necessarie ad accedere ai dati da loro rappresentati. Tra queste informazioni c'è il campo di tipo DataType, che indica il tipo di dati contenuti nell'oggetto. A seconda del tipo di dato si utilizza un tipo di loader differente. I dati supportati dal DB Maker sono: Web, File Testuali, Dataframe e PDF. Questi possono essere caricati sia singolarmente che specificando una directory e lasciando che il DB Maker si occupi di discernere i vari tipi di dati.
+
+Dopo che il maker ha ottenuto tutte le informazioni necessarie, esso avvia un test atto a verificare che i dati che si intende caricare esistano e siano correttamente accessibili, in tal caso avvia il processo di loading e splitting dei dati, e una volta ottenuti gli splits, li vettorizza e li carica nel vectorstore. Come vectorstore avevo deciso di utilizzare Chroma, ma a causa di alcuni problemi riscontrati durante il tentativo di caricare dati di maggiore dimensione, ho deciso di effettuare alcune prove con altri.
+
+Ho provato il vectorstore QDrant \cite{qdrant}, ma nonostante la sua eccezionale velocità sia in fase di inserimento dei dati, che in fase di recupero, è risultato essere molto impreciso. Il migliore si è rivelato essere il vectorstore FAISS \cite{faiss,douze2024faisslibrary}, che è risultato essere molto veloce e altrettanto preciso.
+\begin{lstlisting}[label=lst:dbmaker, caption={Implementazione del DB Maker}]
+from data_manager import Data, Splitter
+from langchain_community.vectorstores import FAISS
+from tqdm import tqdm
+
+class DBMaker(*@\textcolor{functionyellow}{()}@*):
+    def __init__(*@\textcolor{functionyellow}{(}@*)self, config: (*@\textcolor{classgreen}{dict}@*), vectorstore: FAISS(*@\textcolor{functionyellow}{)}@*):
+        self.config = config
+        self.vectorstore = vectorstore
+    
+    def make(*@\textcolor{functionyellow}{(}@*)self, data: (*@\textcolor{classgreen}{list}@*)(*@\textcolor{keywordpurple}{[}@*)Data(*@\textcolor{keywordpurple}{]}@*)(*@\textcolor{functionyellow}{)}@*):
+        splitter = Splitter(*@\textcolor{functionyellow}{(}@*)self.config(*@\textcolor{keywordpurple}{[}@*)"paths"(*@\textcolor{keywordpurple}{]}@*)(*@\textcolor{keywordpurple}{[}@*)"data"(*@\textcolor{keywordpurple}{]}@*)(*@\textcolor{functionyellow}{)}@*)
+        docs = splitter.create_chunks(*@\textcolor{functionyellow}{(}@*)data(*@\textcolor{functionyellow}{)}@*)
+        batches = self.batch(*@\textcolor{functionyellow}{(}@*)docs(*@\textcolor{functionyellow}{)}@*)
+        for (*@\textcolor{basicblue}{batch}@*) in tqdm(*@\textcolor{functionyellow}{(}@*)
+            batches,
+            desc="Caricamento documenti(*@\textcolor{stringbrown}{...}@*)"
+        (*@\textcolor{functionyellow}{)}@*):
+            self.vectorstore.add_documents(*@\textcolor{functionyellow}{(}@*)(*@\textcolor{basicblue}{batch}@*)(*@\textcolor{functionyellow}{)}@*)
+        self.vectorstore.save_local(*@\textcolor{functionyellow}{(}@*)
+            self.config(*@\textcolor{keywordpurple}{[}@*)"paths"(*@\textcolor{keywordpurple}{]}@*)(*@\textcolor{keywordpurple}{[}@*)"db"(*@\textcolor{keywordpurple}{]}@*)
+        (*@\textcolor{functionyellow}{)}@*)
+    
+    def batch(*@\textcolor{functionyellow}{(}@*)self, chunks, n_max=(*@\textcolor{numberyellow}{10000}@*)(*@\textcolor{functionyellow}{)}@*):
+        batches = (*@\textcolor{functionyellow}{[]}@*)
+        current_batch = (*@\textcolor{functionyellow}{[]}@*)
+        count = (*@\textcolor{numberyellow}{0}@*)
+
+        for c in chunks:
+            chunk_length = len(*@\textcolor{functionyellow}{(}@*)c.page_content(*@\textcolor{functionyellow}{)}@*)
+            
+            if count + chunk_length >= n_max:
+                batches.append(*@\textcolor{functionyellow}{(}@*)current_batch(*@\textcolor{functionyellow}{)}@*)
+                current_batch = (*@\textcolor{functionyellow}{[}@*)c(*@\textcolor{functionyellow}{]}@*)
+                count = chunk_length
+            else:
+                current_batch.append(*@\textcolor{functionyellow}{(}@*)c(*@\textcolor{functionyellow}{)}@*)
+                count += chunk_length
+
+        if current_batch:
+            batches.append(*@\textcolor{functionyellow}{(}@*)current_batch(*@\textcolor{functionyellow}{)}@*)
+        
+        return batches
+\end{lstlisting}
+Il Codice \ref{lst:dbmaker} è l'implementazione del DB Maker, si noti che i documenti vengono caricati in batch di dimensioni massime di 10000 caratteri. Questo è stato fatto per evitare che la memoria di sistema si riempisse troppo velocemente.
+Lo splitter invece è implementato in modo tale da prendere in input i dati grezzi e passarli al loro loader corrispondente. A quel punto effettua lo splitting dei documenti e li restituisce tutti assieme al DB Maker all'interno di una lista di oggetti di tipo Document.
+\begin{lstlisting}[label=lst:loaddb, caption={Procedura di caricamento con DB Maker}]
+from langchain_community.docstore import InMemoryDocstore
+from langchain_community.vectorstores import FAISS
+from langchain_huggingface import HuggingFaceEmbeddings
+from data_manager import DataList
+from (*@\textcolor{classgreen}{db\_maker}@*) import DBMaker
+from utilities import load_config
+from dotenv import load_dotenv, find_dotenv
+import faiss
+import torch
+ 
+config = load_config(*@\textcolor{functionyellow}{()}@*)
+load_dotenv(*@\textcolor{functionyellow}{(}@*)find_dotenv(*@\textcolor{keywordpurple}{()}@*)(*@\textcolor{functionyellow}{)}@*)
+
+data_list = DataList(*@\textcolor{functionyellow}{(}@*)config(*@\textcolor{functionyellow}{)}@*)
+data_list.add_dir(*@\textcolor{functionyellow}{(}@*)
+    path="txts_parags/",
+    chunk_size=(*@\textcolor{numberyellow}{1000}@*),
+    chunk_overlap=(*@\textcolor{numberyellow}{0}@*)
+(*@\textcolor{functionyellow}{)}@*)
+data_list.add(*@\textcolor{functionyellow}{(}@*)path="link(*@\textcolor{stringbrown}{.}@*)txt"(*@\textcolor{functionyellow}{)}@*)
+
+if not data_list.test(*@\textcolor{functionyellow}{()}@*):
+    return
+data = data_list.get_data(*@\textcolor{functionyellow}{()}@*)
+
+model_name = config(*@\textcolor{functionyellow}{[}@*)"embedder"(*@\textcolor{functionyellow}{]}@*)
+device = "cuda" if torch.cuda.is_available(*@\textcolor{functionyellow}{()}@*) else "cpu"
+model_kwargs = (*@\textcolor{functionyellow}{\{}@*)"device": device(*@\textcolor{functionyellow}{\}}@*)
+
+embedder = HuggingFaceEmbeddings(*@\textcolor{functionyellow}{(}@*)
+    model_name=model_name,
+    model_kwargs=model_kwargs
+(*@\textcolor{functionyellow}{)}@*)
+
+index = faiss.IndexFlatL2(*@\textcolor{functionyellow}{(}@*)
+    len(*@\textcolor{keywordpurple}{(}@*)embedder.embed_query(*@\textcolor{defblue}{(}@*)"index"(*@\textcolor{defblue}{)}@*)(*@\textcolor{keywordpurple}{)}@*)
+(*@\textcolor{functionyellow}{)}@*)
+
+vectorstore = FAISS(*@\textcolor{functionyellow}{(}@*)
+    embedding_function=embedder,
+    index=index,
+    (*@\textcolor{basicblue}{docstore}@*)=InMemoryDocstore(*@\textcolor{keywordpurple}{()}@*),
+    index_to_docstore_id=(*@\textcolor{keywordpurple}{\{\}}@*)
+(*@\textcolor{functionyellow}{)}@*)
+
+db_maker = DBMaker(*@\textcolor{functionyellow}{(}@*)config, vectorstore(*@\textcolor{functionyellow}{)}@*)
+db_maker.make(*@\textcolor{functionyellow}{(}@*)data(*@\textcolor{functionyellow}{)}@*)
+\end{lstlisting}
+In questo modo posso creare un database vettoriale con i documenti che mi interessano e posso salvare quest'ultimo in locale. Una volta creato il database, posso utilizzarlo tutte le volte che voglio per fare ricerche all'interno dei documenti senza doverli ricaricare ogni volta.
+
+Come si può vedere nella parte iniziale del Codice \ref{lst:loaddb}, i dati vengono caricati all'interno di un oggetto di tipo DataList. Essi vengono caricati a partire da una directory, tranne che per un singolo file contenente qualche link, che viene caricato singolarmente. Una volta inseriti i dati, essi vengono testati per verificare che siano corretti e che siano accessibili.
+Se ciò si rivela vero, allora i dati possono essere caricati nel vectorstore. In questo caso uso lo stesso embedder degli esempi precedenti (vedi Codice \ref{lst:keanuload}). Per quanto riguarda il vectorstore, invece utilizzo FAISS che richiede (oltre ai documenti e all'embedder) un indice e un docstore. L'indice è un oggetto di tipo faiss.IndexFlatL2, che è un indice flat con distanza euclidea che si occupa di salvare i vettori veri e propri e gestisce la ricerca di essi. Il docstore è un oggetto di tipo InMemoryDocstore, e serve a salvare i dati dei documenti in memoria. Una volta trovato un determinato vettore si accede al suo id e quindi al corrispondente all'interno del docstore (tramite l'indice index\textunderscore to\textunderscore docstore\textunderscore id). In questo modo si possono recuperare i dati del documento corrispondente al vettore trovato.
