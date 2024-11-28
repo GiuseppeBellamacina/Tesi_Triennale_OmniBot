@@ -2,10 +2,12 @@
 
 Questa è la tesi della mia laurea triennale in Informatica, che discuterò il 13 dicembre 2024 presso l'Università degli Studi di Catania.
 
-<p align="center">
-    <strong>Dalla Ricerca alla Risposta</strong>:<br>
+<h2 align="center">
+    <strong>
+        Dalla Ricerca alla Risposta
+    </strong>:<br>
     Il Nuovo Paradigma Conversazionale grazie all'Intelligenza Artificiale
-</p>
+</h2>
 
 ## Abstract
 Lo sviluppo di tecnologie all'avanguardia ha trasformato profondamente le nostre vite. Negli ultimi anni, l'avanzamento esponenziale nelle tecniche di produzione di componenti hardware e nell'elaborazione di algoritmi di apprendimento automatico sempre più efficienti, ha favorito una rapida evoluzione nel campo del Machine Learning e del Deep Learning.
