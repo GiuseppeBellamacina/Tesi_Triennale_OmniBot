@@ -1,0 +1,124 @@
+\documentclass[12pt,a4paper,openright,twoside]{book}
+
+\usepackage{hyperref}
+\usepackage[italian]{babel}
+
+\usepackage[utf8x]{inputenc}
+\usepackage[T1]{fontenc}
+
+\usepackage{graphicx}
+\usepackage[font=small,labelfont=bf,tableposition=top]{caption}
+
+\usepackage[headheight=12pt, textheight=592pt, marginparsep=7pt, footskip=30pt, hoffset=0pt, paperwidth=597pt,
+            top=127pt, headsep=19pt, textwidth=390pt, marginparwidth=38pt, voffset=0pt, paperheight=845pt,
+            inner=117pt, outer=90pt]{geometry} % Metto il margine della rilegatura più largo
+\usepackage{listings}
+\usepackage{inconsolata}
+\usepackage{xcolor}
+\usepackage[framemethod=tikz]{mdframed}
+
+\definecolor{commentsgreen}{rgb}{0, 0.6, 0} % Per i commenti
+\definecolor{codegray}{rgb}{0.5, 0.5, 0.5} % Per i numeri di riga
+\definecolor{keywordpurple}{rgb}{0.77, 0.525, 0.75} % Per le keyword
+\definecolor{backcolour}{rgb}{0.12, 0.12, 0.12} % Colore grigio scuro per lo sfondo
+\definecolor{functionyellow}{rgb}{0.86, 0.86, 0.667} % Colore blu per le tue funzioni
+\definecolor{basicblue}{rgb}{0.61, 0.86, 1} % Colore blu per il testo
+\definecolor{classgreen}{rgb}{0.294, 0.745, 0.6} % Colore verde per le classi
+\definecolor{numberyellow}{rgb}{0.686, 0.705, 0.435} % Colore giallo per i numeri
+\definecolor{stringbrown}{rgb}{0.8, 0.51, 0.298} % Colore marrone per le stringhe
+\definecolor{defblue}{rgb}{0.2, 0.32, 0.833} % Colore blu per le definizioni
+\definecolor{constantblue}{rgb}{0.2, 0.705, 1} % Colore blu per le costanti
+
+\lstset{
+        language=Python,
+        basicstyle=\footnotesize\ttfamily\color{basicblue},
+        numbers=left,
+        numberstyle=\tiny\ttfamily\color{codegray},
+        numbersep=8pt,
+        tabsize=5,
+        escapeinside={(*@}{@*)},
+        extendedchars=true,
+        breaklines=true,
+        backgroundcolor=\color{backcolour},
+        commentstyle=\ttfamily\color{commentsgreen},
+        keywordstyle=\ttfamily\color{keywordpurple},
+        deletekeywords={print, dict, all, list, str},
+        stringstyle=\ttfamily\color{stringbrown},
+        showspaces=false,
+        showtabs=false,
+        xleftmargin=17pt,
+        framexleftmargin=17pt,
+        framexrightmargin=5pt,
+        framexbottommargin=4pt,
+        showstringspaces=false,
+        captionpos=b,
+        morekeywords=[2]{load_from_local, get_vectors, get_labels, fit_transform, from_pretrained, to, generate, decode, print, load, split_documents, from_documents, as_retriever, format_docs, join, invoke, from_template, batch, make, __init__, add_documents, append, create_chunks, save_local, load_config, load_dotenv, find_dotenv, add_dir, get_data, test, add, is_available, embed_query, create_history_aware_retriever, create_retrieval_chain, create_stuff_documents_chain, from_messages, _get_relevant_documents, get_child, compress_documents, filter_by_similarity, search_by_vector, get},
+        keywordstyle=[2]\ttfamily\color{functionyellow},  % Stile per le funzioni
+        morekeywords=[3]{sklearn, manifold, TSNE, preprocessing, LabelEncoder, vectordb, VectorDatabase, transformers, AutoTokenizer, AutoModelForCausalLM, torch, WebBaseLoader, langchain_community, langchain_core, langchain, document_loaders, text_splitter, bs4, RecursiveCharacterTextSplitter, dict, SoupStrainer, langchain_huggingface, HuggingFaceEmbeddings, vectorstores, Chroma, prompts, output_parsers, runnables, RunnablePassthrough, StrOutputParser, PromptTemplate, langchain_ollama, OllamaLLM, data_manager, Data, Splitter, FAISS, tqdm, DBMaker, docstore, InMemoryDocstore, DataList, utilities, dotenv, faiss, IndexFlatL2, chains,history_aware_retriever, RunnableWithMessageHistory, ChatPromptTemplate, MessagesPlaceholder, history, llms, retrieval, combine_documents, Document, CallbackManagerForRetrieverRun},
+        keywordstyle=[3]\ttfamily\color{classgreen},  % Stile per le classi
+        morekeywords=[4]{RAG_PROMPT, TRANSFORM_PROMPT},
+        keywordstyle=[4]\ttfamily\color{constantblue},  % Stile per le costanti
+        literate={.}{{\textcolor{white}{.}}}1 
+                 {=}{{\textcolor{white}{=}}}1
+                 {,}{{\textcolor{white}{,}}}1
+                 {:}{{\textcolor{white}{:}}}1
+                 {|}{{\textcolor{white}{|}}}1
+                 {+}{{\textcolor{white}{+}}}1
+                 {-}{{\textcolor{white}{-}}}1
+                 {>}{{\textcolor{white}{>}}}1
+                 {<}{{\textcolor{white}{<}}}1
+                 {*}{{\textcolor{white}{*}}}1
+}
+ 
+% Questo serve per cambiare il nome della lista dei codici in "Codice"
+\addto\captionsitalian{
+        \renewcommand{\lstlistingname}{Codice}}
+
+% Questo pacchetto serve per inserire e numerare le subsection
+\setcounter{tocdepth}{2} % numerazione indice
+\setcounter{secnumdepth}{2} % numerazione nel testo
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage{float}
+\usepackage{framed}
+\usepackage{layout} % Per visualizzare il layout della pagina
+
+\begin{document}
+\raggedbottom % Per evitare spazi bianchi inutili
+
+\newgeometry{top=2.5cm, bottom=3cm, left=2.5cm, right=2.5cm}
+\input{parts/frontespizio}
+\restoregeometry
+
+\input{parts/abstract}
+
+\tableofcontents
+
+\input{parts/intro}
+
+\input{parts/capitolo1_llm}
+
+\input{parts/capitolo2_rag}
+
+\input{parts/capitolo3_progetto1}
+
+\input{parts/capitolo4_progetto2}
+
+\input{parts/capitolo5_progetto3}
+
+\input{parts/capitolo6_progetto4}
+
+\input{parts/conclusione}
+
+\newpage
+
+% Bibliografia
+\addcontentsline{toc}{chapter}{Bibliografia}
+\bibliographystyle{unsrt}
+\raggedright
+\bibliography{bibliography}
+
+\input{parts/ringraziamenti}
+    
+\end{document}
